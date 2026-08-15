@@ -70,6 +70,20 @@ constexpr float dot(Vector3 a, Vector3 b)
 	return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
+/* TODO :
+ReflectRay(R, N) {
+	return 2 * N * dot(N, R) - R;
+}*/
+
+// R defined as direction from P towards light source
+// N is normal of surface at point P
+// formula derivation at https://gabrielgambetta.com/computer-graphics-from-scratch/03-light.html
+Vector3 ReflectRay(Vector3 R, Vector3 N) // R defined as pointing away from the N, and result will be as well
+{
+	float r_dot_n{ dot(R,N) };
+	return { 2 * r_dot_n * N.x - R.x, 2 * r_dot_n * N.y - R.y, 2 * r_dot_n * N.z - R.z };
+}
+
 constexpr unsigned char ModulateColorByIntensity(unsigned char base_color_val, float intensity_amplification)
 {
 	float raw_amplified_val{ static_cast<float>(base_color_val) * intensity_amplification };
@@ -111,13 +125,6 @@ constexpr std::pair<int, float> ClosestIntersection(Vector3 O, Vector3 D, float 
 	}
 	return { closest_sphere,closest_t };
 }
-
-Vector3 ReflectRay(Vector3 R, Vector3 N) // R defined as pointing away from the N, and result will be as well
-{
-	float r_dot_n{ dot(R,N) };
-	return { 2 * r_dot_n * N.x - R.x, 2 * r_dot_n * N.y - R.y, 2 * r_dot_n * N.z - R.z };
-}
-
 
 // P is point of the object we are tracing the ray from
 // N is the unit normal vector to that surface that P is a point on
@@ -177,7 +184,12 @@ constexpr float ComputeLightIntensity(Vector3 P, Vector3 N, Vector3 V, float spe
 	return light_intensity;
 }
 
-constexpr Color TraceRay(Vector3 O, Vector3 D, float t_min, float t_max)
+// O is viewpoint, D is Direction from O to viewport (but what about reflections?)
+// Looking at Gambetta's pseudocode, he just uses R, so maybe D is just a directional vector, and length doesn't matter
+// That makes sense, because we are checking for intersections
+// Taking a look at https://gabrielgambetta.com/computer-graphics-from-scratch/02-basic-raytracing.html again,
+// tmin and tmax are values that we want to consider valid intersections with opaque/reflective objects along vecD direction
+constexpr Color TraceRay(Vector3 O, Vector3 D, float t_min, float t_max, int recursion_depth)
 {
 	std::pair<int, float> closest_obstruction_result{ ClosestIntersection(O, D, t_min, t_max) };
 	int closest_sphere = closest_obstruction_result.first;
@@ -200,10 +212,26 @@ constexpr Color TraceRay(Vector3 O, Vector3 D, float t_min, float t_max)
 		float light_intensity{ ComputeLightIntensity(P,N,{-D.x,-D.y,-D.z},Scene::spheres.at(closest_sphere).specular_exponent) };
 
 		Color base_color{ Scene::spheres.at(closest_sphere).color };
-		return Color{
+		Color local_color{ Color{
 				ModulateColorByIntensity(base_color.r,light_intensity),
 				ModulateColorByIntensity(base_color.g,light_intensity),
 				ModulateColorByIntensity(base_color.b,light_intensity),
+				base_color.a
+		} };
+		
+		// Done if we have hit the recursion limit, or object is not reflective
+		float r = Scene::spheres.at(closest_sphere).reflective;
+		if (recursion_depth <= 0 || r <= 0) return local_color;
+
+		// Compute reflected color
+		Vector3 R = ReflectRay({ -D.x,-D.y,-D.z }, N);
+		Color reflected_color = TraceRay(P, R, 0.001f, FLOAT_MAX, recursion_depth - 1);
+
+		// local_color * (1 - r) + reflected_color * r;
+		return {
+				static_cast<unsigned char>(static_cast<float>(local_color.r) * (1.0f - r) + static_cast<float>(reflected_color.r) * r),
+				static_cast<unsigned char>(static_cast<float>(local_color.g) * (1.0f - r) + static_cast<float>(reflected_color.g) * r),
+				static_cast<unsigned char>(static_cast<float>(local_color.b) * (1.0f - r) + static_cast<float>(reflected_color.b) * r),
 				base_color.a
 		};
 	}
@@ -257,7 +285,8 @@ int main ()
 
 					Vector3 D{ Vx, Vy, Vz };
 
-					Color seen_color{ TraceRay(O, D, d, FLOAT_MAX) };
+					int recursion_depth = 3;
+					Color seen_color{ TraceRay(O, D, d, FLOAT_MAX, recursion_depth) };
 					DrawPixel(x, y, seen_color);
 				}
 			}

@@ -3,9 +3,7 @@
 int main()
 {
 	//RayTracePractice();
-
-
-
+	RasterizationPractice();
 
 	return 0;
 }

@@ -1,6 +1,8 @@
 #ifndef gambetta_graphics_helpers_h
 #define gambetta_graphics_helpers_h
 
+#define FLOAT_MAX std::numeric_limits<float>::max()
+
 //#error "YES, THIS HEADER IS BEING INCLUDED"
 
 #include "raylib.h"
@@ -9,10 +11,10 @@
 #include <limits>
 #include <vector>
 #include <array>
-
-#define FLOAT_MAX std::numeric_limits<float>::max()
+#include <cassert>
 
 void RayTracePractice();
+void RasterizationPractice();
 
 struct Sphere
 {

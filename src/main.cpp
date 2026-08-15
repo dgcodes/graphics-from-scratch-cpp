@@ -240,6 +240,21 @@ constexpr Color TraceRay(Vector3 O, Vector3 D, float t_min, float t_max, int rec
 	return Scene::background_color;
 }
 
+Vector3 RotateCameraCCW_xzPlane(Vector3 v, float alpha) // angle alpha in degrees
+{
+	float radians = alpha * PI / 180.0f;
+
+	float c = cos(radians);
+	float s = sin(radians);
+
+	return {
+		c * v.x - s * v.z,
+		v.y,
+		s * v.x + c * v.z
+	};
+}
+
+
 int main ()
 {
 	// Tell the window to use vsync and work on high DPI displays
@@ -254,14 +269,15 @@ int main ()
 	float Vh{ 1.0f };	// Viewport height
 	float d = 0.75f;	// Viewport distance
 
-	// Camera at origin
+	// Camera at origin (to start)
 	// Viewport center at distance `d`
+	Vector3 O{ 0.0, 0.0, 0.0 };
 
 	// game loop
 	while (!WindowShouldClose())		// run the loop until the user presses ESCAPE or presses the Close button on the window
 	{
 		// update can go here
-		Vector3 O{ 0.0, 0.0, 0.0 };
+		
 
 		// drawing
 		BeginDrawing();
@@ -278,15 +294,23 @@ int main ()
 					int Cy = -y + resolution_height / 2;
 					// map coords to a 0-centered xy plane
 
-					// These are assuming O is at the origin and pointing down the Z axis
+					// These are assuming O is at the origin and pointing down the Z axis?
+					// Maybe not? They only involve canvas and viewport, which are fixed for the camera
 					float Vx = Cx * Vw / static_cast<float>(resolution_width);
 					float Vy = Cy * Vh / static_cast<float>(resolution_width);
 					float Vz = d;
 
+					// This part, however, should probably change based on rotation of the camera
 					Vector3 D{ Vx, Vy, Vz };
+					// TODO : Determine some rotation matrix and multiply here
+					Vector3 rotated_D = RotateCameraCCW_xzPlane(D, 30); // Try a 30 degree left "yaw?" rotation of the camera
 
 					int recursion_depth = 3;
-					Color seen_color{ TraceRay(O, D, d, FLOAT_MAX, recursion_depth) };
+					Vector3 camera_translation{ 1.0f, 1.0f, 0.0f };
+					//Vector3 camera_translation{ -1.0f, -1.0f, 0.0f };
+					Vector3 translated_O = { O.x + camera_translation.x, O.y + camera_translation.y, O.z + camera_translation.z };
+
+					Color seen_color{ TraceRay(translated_O, rotated_D, d, FLOAT_MAX, recursion_depth) };
 					DrawPixel(x, y, seen_color);
 				}
 			}

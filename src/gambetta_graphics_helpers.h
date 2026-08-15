@@ -16,6 +16,47 @@
 void RayTracePractice();
 void RasterizationPractice();
 
+struct CanvasPoint
+{
+	int x;
+	int y;
+};
+
+//struct FloatPoint
+//{
+//	float x;
+//	float y;
+//};
+
+// interpolate "d = f(i)"
+// simple linear 2-variable interpolation
+// note that we return floats because we interpolate along 
+// the integral pixel values (inputs)
+// since slope is calculated as change in y's over x's here
+// it "works better" for a more horizontal line (where change in
+// y per x is more gradual)
+constexpr std::vector<float> LinearInterpolate_2d(CanvasPoint P1, CanvasPoint P2)
+{
+	assert(P1.x <= P2.x && "P1 must come before P2 in i");
+
+	std::vector<float> interp_vals;
+	if (P1.x == P2.x) // Edge case of P1 = P2
+	{
+		interp_vals.push_back(P1.y);
+		return interp_vals;
+	}
+
+	float a{ static_cast<float>(P2.y - P1.y) / static_cast<float>(P2.x - P1.x) };
+	float d = static_cast<float>(P1.y);
+	for (int i = P1.x; i <= P2.x; ++i)
+	{
+		interp_vals.push_back(d);
+		d += a;
+	}
+	return interp_vals;
+}
+
+
 struct Sphere
 {
 	Vector3 center{};

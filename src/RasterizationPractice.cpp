@@ -1,20 +1,19 @@
 #include "gambetta_graphics_helpers.h"
 
-struct CanvasPoint
-{
-	int x;
-	int y;
-};
-
 void myDrawLine(CanvasPoint P0, CanvasPoint P1, Color color)
 {
 	//assert(P1.x != P0.x && "Divide by zero detected in myDrawLine");
-	float a = (P1.y - P0.y) / static_cast<float>(P1.x - P0.x);
-	int y = P0.y;
-	for (int x = P0.x; x <= P1.x; ++x)
+	if (abs(P1.x - P0.x) > abs(P1.y - P0.y))
 	{
-		DrawPixel(x, y, color);
-		y += a;
+		if (P0.x > P1.x) std::swap(P0, P1); // First point needs to come before second in the independent variable for LinearInterpolate_2d()
+		std::vector<float> ys{ LinearInterpolate_2d(P0,P1) };
+		for (int x = P0.x; x <= P1.x; ++x) DrawPixel(x, ys[x - P0.x], color);
+	}
+	else
+	{
+		if (P0.y > P1.y) std::swap(P0, P1);
+		std::vector<float> xs{ LinearInterpolate_2d({P0.y,P0.x},{P1.y,P1.x}) }; // swap x and y for the opposite-method interpolation
+		for (int y = P0.y; y <= P1.y; ++y) DrawPixel(xs[y-P0.y], y, color);
 	}
 }
 
@@ -48,7 +47,8 @@ void RasterizationPractice()
 		// Setup the back buffer for drawing (clear color and depth buffers)
 		ClearBackground(WHITE);
 
-		myDrawLine({ 500,500 }, { 700,300 }, BLUE);
+		myDrawLine({ 500,500 }, { 700,100 }, BLUE);
+		myDrawLine({ 300,300 }, { 800,400 }, GREEN);
 
 		// end the frame and get ready for the next one  (display frame, poll input, etc...)
 		EndDrawing();

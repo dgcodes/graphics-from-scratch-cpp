@@ -35,20 +35,20 @@ struct CanvasPoint
 // since slope is calculated as change in y's over x's here
 // it "works better" for a more horizontal line (where change in
 // y per x is more gradual)
-constexpr std::vector<float> LinearInterpolate_2d(CanvasPoint P1, CanvasPoint P2)
+constexpr std::vector<float> LinearInterpolate_2d(CanvasPoint P0, CanvasPoint P1)
 {
-	assert(P1.x <= P2.x && "P1 must come before P2 in i");
+	assert(P0.x <= P1.x && "P1 must come before P2 in i");
 
 	std::vector<float> interp_vals;
-	if (P1.x == P2.x) // Edge case of P1 = P2
+	if (P0.x == P1.x) // Edge case of P1 = P2
 	{
-		interp_vals.push_back(P1.y);
+		interp_vals.push_back(P0.y);
 		return interp_vals;
 	}
 
-	float a{ static_cast<float>(P2.y - P1.y) / static_cast<float>(P2.x - P1.x) };
-	float d = static_cast<float>(P1.y);
-	for (int i = P1.x; i <= P2.x; ++i)
+	float a{ static_cast<float>(P1.y - P0.y) / static_cast<float>(P1.x - P0.x) };
+	float d = static_cast<float>(P0.y);
+	for (int i = P0.x; i <= P1.x; ++i)
 	{
 		interp_vals.push_back(d);
 		d += a;

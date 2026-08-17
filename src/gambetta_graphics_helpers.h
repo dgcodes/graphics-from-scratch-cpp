@@ -20,6 +20,7 @@ struct CanvasPoint
 {
 	int x;
 	int y;
+	float h{ 1.0f }; // shading intensity, from 0 to 1. 1 equates to original color
 };
 
 //struct FloatPoint
@@ -35,20 +36,45 @@ struct CanvasPoint
 // since slope is calculated as change in y's over x's here
 // it "works better" for a more horizontal line (where change in
 // y per x is more gradual)
-constexpr std::vector<float> LinearInterpolate_2d(CanvasPoint P0, CanvasPoint P1)
+constexpr std::vector<float> LinearInterpolate_2d_CanvasPoints(CanvasPoint P0, CanvasPoint P1)
 {
 	assert(P0.x <= P1.x && "P1 must come before P2 in i");
 
 	std::vector<float> interp_vals;
 	if (P0.x == P1.x) // Edge case of P1 = P2
 	{
-		interp_vals.push_back(P0.y);
+		interp_vals.push_back(static_cast<float>(P0.y));
 		return interp_vals;
 	}
 
 	float a{ static_cast<float>(P1.y - P0.y) / static_cast<float>(P1.x - P0.x) };
 	float d = static_cast<float>(P0.y);
 	for (int i = P0.x; i <= P1.x; ++i)
+	{
+		interp_vals.push_back(d);
+		d += a;
+	}
+	return interp_vals;
+}
+
+// for interpolating points with independent variable with type int (i0 & i1)
+// and dependent variables with type T (d0, d1)
+// So the Points are (i0, d0),(i1,d1)
+template <typename T>
+constexpr std::vector<float> LinearInterpolate_2d(int i0, int i1, T d0, T d1)
+{
+	assert(i0 <= i1 && "P1 must come before P2 in i");
+
+	std::vector<float> interp_vals;
+	if (i0 == i1) // Edge case of P1 = P2
+	{
+		interp_vals.push_back(static_cast<float>(d0));
+		return interp_vals;
+	}
+
+	float a{ static_cast<float>(d1 - d0) / static_cast<float>(i1 - i0) };
+	float d = static_cast<float>(d0);
+	for (int i = i0; i <= i1; ++i)
 	{
 		interp_vals.push_back(d);
 		d += a;
@@ -87,10 +113,20 @@ constexpr float dot(Vector3 a, Vector3 b)
 	return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-constexpr unsigned char ModulateColorByIntensity(unsigned char base_color_val, float intensity_amplification)
+constexpr unsigned char ModulateColorValByIntensity(unsigned char base_color_val, float intensity_amplification)
 {
 	float raw_amplified_val{ static_cast<float>(base_color_val) * intensity_amplification };
 	return raw_amplified_val > 255 ? 255 : static_cast<unsigned char>(raw_amplified_val);
+}
+
+constexpr Color ModulateColorByIntensity(Color color, float intensity_amplification)
+{
+	return {
+		ModulateColorValByIntensity(color.r,intensity_amplification),
+		ModulateColorValByIntensity(color.g,intensity_amplification),
+		ModulateColorValByIntensity(color.b,intensity_amplification),
+		color.a
+	};
 }
 
 constexpr Vector3 RotateCameraCCW_xzPlane(Vector3 v, float alpha) // angle alpha in degrees

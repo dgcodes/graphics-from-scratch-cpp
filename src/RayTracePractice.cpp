@@ -166,9 +166,9 @@ constexpr Color TraceRay(Vector3 O, Vector3 D, float t_min, float t_max, int rec
 
 		Color base_color{ Scene::spheres.at(closest_sphere).color };
 		Color local_color{ Color{
-				ModulateColorByIntensity(base_color.r,light_intensity),
-				ModulateColorByIntensity(base_color.g,light_intensity),
-				ModulateColorByIntensity(base_color.b,light_intensity),
+				ModulateColorValByIntensity(base_color.r,light_intensity),
+				ModulateColorValByIntensity(base_color.g,light_intensity),
+				ModulateColorValByIntensity(base_color.b,light_intensity),
 				base_color.a
 		} };
 

@@ -15,7 +15,7 @@ Began project with ...
 
 //#include "resource_dir.h"	// utility header for SearchAndSetResourceDir
 
-namespace Scene
+namespace SceneRayTrace
 {
 	std::vector<Sphere> spheres{
 		{ { 0.0f, -1.0f,  3.0f},	1.0f,		RED,	500.0f,		0.2f	},
@@ -61,10 +61,10 @@ constexpr std::pair<int, float> ClosestIntersection(Vector3 O, Vector3 D, float 
 {
 	float closest_t = FLOAT_MAX;
 	int closest_sphere{ -1 }; // -1 because not a valid index, assume these spheres are in an array
-	int n{ static_cast<int>(Scene::spheres.size()) };
+	int n{ static_cast<int>(SceneRayTrace::spheres.size()) };
 	for (int i = 0; i < n; ++i)
 	{
-		std::pair<float, float> intersections{ IntersectRaySphere(O,D,Scene::spheres.at(i)) };
+		std::pair<float, float> intersections{ IntersectRaySphere(O,D,SceneRayTrace::spheres.at(i)) };
 		if (intersections.first <= t_max && intersections.first >= t_min && intersections.first < closest_t)
 		{
 			closest_t = intersections.first;
@@ -84,11 +84,11 @@ constexpr std::pair<int, float> ClosestIntersection(Vector3 O, Vector3 D, float 
 constexpr float ComputeLightIntensity(Vector3 P, Vector3 N, Vector3 V, float specular_exponent)
 {
 	float light_intensity{ 0.0f };
-	int n{ static_cast<int>(Scene::lights.size()) };
+	int n{ static_cast<int>(SceneRayTrace::lights.size()) };
 	for (int i = 0; i < n; ++i) // could be iterator loop instead?
 		// would it make copies?
 	{
-		Light this_light{ Scene::lights[i] };
+		Light this_light{ SceneRayTrace::lights[i] };
 		if (this_light.type == LightType::ambient) light_intensity += this_light.intensity;
 		else
 		{
@@ -155,16 +155,16 @@ constexpr Color TraceRay(Vector3 O, Vector3 D, float t_min, float t_max, int rec
 					O.z + closest_t * D.z };
 
 		// Compute unit normal vector
-		Vector3 closest_sphere_center{ Scene::spheres.at(closest_sphere).center };
+		Vector3 closest_sphere_center{ SceneRayTrace::spheres.at(closest_sphere).center };
 		Vector3 N{ P.x - closest_sphere_center.x,
 					P.y - closest_sphere_center.y,
 					P.z - closest_sphere_center.z };
 		float mag_N{ sqrtf(dot(N,N)) };
 		N = { N.x / mag_N, N.y / mag_N, N.z / mag_N };
 
-		float light_intensity{ ComputeLightIntensity(P,N,{-D.x,-D.y,-D.z},Scene::spheres.at(closest_sphere).specular_exponent) };
+		float light_intensity{ ComputeLightIntensity(P,N,{-D.x,-D.y,-D.z},SceneRayTrace::spheres.at(closest_sphere).specular_exponent) };
 
-		Color base_color{ Scene::spheres.at(closest_sphere).color };
+		Color base_color{ SceneRayTrace::spheres.at(closest_sphere).color };
 		Color local_color{ Color{
 				ModulateColorValByIntensity(base_color.r,light_intensity),
 				ModulateColorValByIntensity(base_color.g,light_intensity),
@@ -173,7 +173,7 @@ constexpr Color TraceRay(Vector3 O, Vector3 D, float t_min, float t_max, int rec
 		} };
 
 		// Done if we have hit the recursion limit, or object is not reflective
-		float r = Scene::spheres.at(closest_sphere).reflective;
+		float r = SceneRayTrace::spheres.at(closest_sphere).reflective;
 		if (recursion_depth <= 0 || r <= 0) return local_color;
 
 		// Compute reflected color
@@ -190,7 +190,7 @@ constexpr Color TraceRay(Vector3 O, Vector3 D, float t_min, float t_max, int rec
 	}
 
 	// if no sphere in the ray path, return the background color
-	return Scene::background_color;
+	return SceneRayTrace::background_color;
 }
 
 void RayTracePractice()
@@ -221,7 +221,7 @@ void RayTracePractice()
 		BeginDrawing();
 
 		// Setup the back buffer for drawing (clear color and depth buffers)
-		ClearBackground(Scene::background_color);
+		ClearBackground(SceneRayTrace::background_color);
 
 		// Loop over entire canvas (window)
 		for (int x = 0; x < resolution_width; ++x)

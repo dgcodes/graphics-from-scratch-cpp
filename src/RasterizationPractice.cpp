@@ -1,15 +1,89 @@
 #include "gambetta_graphics_helpers.h"
+#include <cmath>
 
 namespace RasterGlobals
 {
 	constexpr Color background_color{ WHITE };
+
 	constexpr int resolution_width{ 1400 };
 	constexpr int resolution_height{ 1000 };
+	constexpr float resolution_width_float{ static_cast<float>(resolution_width) };
+	constexpr float resolution_height_float{ static_cast<float>(resolution_height) };
+	// To avoid some unnecessary casting in various functions
+
+	constexpr float Vw{ 1.0f };		// Viewport width
+	constexpr float Vh{ 1.0f };		// Viewport height
+	constexpr float Vd{ 0.75f };	// Viewport distance from eye
+	// Note : These 3 are in 'scene units'
+};
+
+class Triangle
+{
+private:
+	static constexpr Color default_color{ BLACK };
+	Color m_color;
+	std::array<int,3> vertex_indices; // refers to indices in the triangle list of the myModel
+public:
+	Triangle() = delete;
+	Triangle(int v0, int v1, int v2, Color color = default_color)
+		: vertex_indices{ v0, v1, v2 }, m_color{ color }
+	{}
+	friend void RenderTriangle(bool wireframe_only, const std::vector<CanvasPoint>& vertex_list, const Triangle& triangle);
+};
+
+class myModel
+{
+private:
+	std::string m_name;
+	std::vector<Vector3> m_vertices; // Triangle.vertex_indices refers to these
+	std::vector<Triangle> m_triangles;
+public:
+	myModel() = delete;
+	myModel(std::string name, std::vector<Vector3> vertices, std::vector<Triangle> triangles)
+		: m_name{name},m_vertices{vertices},m_triangles{triangles}
+	{}
+	
+	const std::string GetName() const { return m_name; }
+	const std::vector<Vector3>& GetVertices() const { return m_vertices; }
+	const std::vector<Triangle>& GetTriangles() const { return m_triangles; }
+};
+
+namespace RasterObjectModels
+{
+	// I wonder what the best practices are for loading and storing these kinds of data
+	myModel model_cube{ "cube",
+		// Vertex list
+		{
+			Vector3{-1.0f, -1.0f, -1.0f},
+			Vector3{ 1.0f, -1.0f, -1.0f},
+			Vector3{ 1.0f,  1.0f, -1.0f},
+			Vector3{-1.0f,  1.0f, -1.0f},
+			Vector3{-1.0f, -1.0f,  1.0f},
+			Vector3{ 1.0f, -1.0f,  1.0f},
+			Vector3{ 1.0f,  1.0f,  1.0f},
+			Vector3{-1.0f,  1.0f,  1.0f}
+		},
+		// Triangles list
+		{
+			Triangle{0,1,5,MAROON},
+			Triangle{0,4,5,MAROON},
+			Triangle{3,2,6,DARKPURPLE},
+			Triangle{3,7,6,DARKPURPLE},
+			Triangle{0,3,4,DARKGREEN},
+			Triangle{7,3,4,DARKGREEN},
+			Triangle{2,1,5,GOLD},
+			Triangle{2,6,5,GOLD},
+			Triangle{0,1,2,DARKGRAY},
+			Triangle{0,3,2,DARKGRAY},
+			Triangle{4,5,6,DARKBLUE},
+			Triangle{4,7,6,DARKBLUE}
+		}
+	};
 };
 
 // So we can use Gambetta's conventions of a centered Cartesian system
 // with y increasing up instead of downward
-void DrawPixel_gbettaCoords(int posX, int posY, Color color)
+void DrawPixel_gbettaCoords(int posX, int posY, const Color& color)
 {
 	// Convert to raylib coordinate system (0,0) at top left and y increasing downward
 	int raylibX =  posX + RasterGlobals::resolution_width  / 2;
@@ -17,7 +91,20 @@ void DrawPixel_gbettaCoords(int posX, int posY, Color color)
 	DrawPixel(raylibX, raylibY, color);
 }
 
-void myDrawLine(CanvasPoint P0, CanvasPoint P1, Color color)
+constexpr CanvasPoint ViewportToCanvas(float x, float y)
+{
+	return {
+		static_cast<int>(x * RasterGlobals::resolution_width_float / RasterGlobals::Vw),
+		static_cast<int>(y * RasterGlobals::resolution_height_float / RasterGlobals::Vh)
+	};
+}
+
+constexpr CanvasPoint ProjectVertex(Vector3 v)
+{
+	return ViewportToCanvas(v.x * RasterGlobals::Vd / v.z, v.y * RasterGlobals::Vd / v.z);
+}
+
+void myDrawLine(CanvasPoint P0, CanvasPoint P1, const Color& color)
 {
 	//assert(P1.x != P0.x && "Divide by zero detected in myDrawLine");
 	if (abs(P1.x - P0.x) > abs(P1.y - P0.y))
@@ -34,14 +121,14 @@ void myDrawLine(CanvasPoint P0, CanvasPoint P1, Color color)
 	}
 }
 
-void DrawWireframeTriangle(CanvasPoint P0, CanvasPoint P1, CanvasPoint P2, Color color)
+void DrawWireframeTriangle(CanvasPoint P0, CanvasPoint P1, CanvasPoint P2, const Color& color)
 {
 	myDrawLine(P0, P1, color);
 	myDrawLine(P1, P2, color);
 	myDrawLine(P2, P0, color);
 }
 
-void DrawFilledTriangle(CanvasPoint P0, CanvasPoint P1, CanvasPoint P2, Color color)
+void DrawFilledTriangle(CanvasPoint P0, CanvasPoint P1, CanvasPoint P2, const Color& color)
 {
 	if (P1.y < P0.y) std::swap(P0, P1);
 	if (P2.y < P0.y) std::swap(P0, P2);
@@ -83,7 +170,7 @@ void DrawFilledTriangle(CanvasPoint P0, CanvasPoint P1, CanvasPoint P2, Color co
 	}
 }
 
-void DrawShadedTriangle(CanvasPoint P0, CanvasPoint P1, CanvasPoint P2, Color color)
+void DrawShadedTriangle(CanvasPoint P0, CanvasPoint P1, CanvasPoint P2, const Color& color)
 {
 	if (P1.y < P0.y) std::swap(P0, P1);
 	if (P2.y < P0.y) std::swap(P0, P2);
@@ -120,14 +207,127 @@ void DrawShadedTriangle(CanvasPoint P0, CanvasPoint P1, CanvasPoint P2, Color co
 
 	for (int y = P0.y; y <= P2.y; ++y)
 	{
-		std::vector<float> hs = { LinearInterpolate_2d(static_cast<int>(x_left[y-P0.y]),static_cast<int>(x_right[y-P0.y]),
+		std::vector<float> hs = { LinearInterpolate_2d(static_cast<int>(std::floor(x_left[y-P0.y])),static_cast<int>(std::floor(x_right[y-P0.y])),
 				h_left[y-P0.y],h_right[y-P0.y]) };
-		for (int x = static_cast<int>(x_left[y - P0.y]); x <= static_cast<int>(x_right[y - P0.y]); ++x)
+		for (int x = static_cast<int>(std::floor(x_left[y - P0.y])); x <= static_cast<int>(std::floor(x_right[y - P0.y])); ++x)
 		{
-			float h = hs[x - static_cast<int>(x_left[y - P0.y])];
+			float h = hs[x - static_cast<int>(std::floor(x_left[y - P0.y]))];
 			DrawPixel_gbettaCoords(x, y, ModulateColorByIntensity(color,h));
 		}
 	}
+}
+
+void RenderTriangle(bool wireframe_only, const std::vector<CanvasPoint>& vertex_list, const Triangle& triangle)
+{
+	if (wireframe_only)
+	{
+		DrawWireframeTriangle(
+			vertex_list[triangle.vertex_indices[0]],
+			vertex_list[triangle.vertex_indices[1]],
+			vertex_list[triangle.vertex_indices[2]],
+			triangle.m_color
+			);
+	}
+	else
+	{
+		DrawShadedTriangle(
+			vertex_list[triangle.vertex_indices[0]],
+			vertex_list[triangle.vertex_indices[1]],
+			vertex_list[triangle.vertex_indices[2]],
+			triangle.m_color
+		);
+	}
+}
+
+class Instance
+{
+private:
+	myModel* m_model;
+	std::vector<CanvasPoint> m_latest_projected_vertices; // Useful?
+	std::vector<Vector3> m_latest_transformed_vertices;
+	Matrix m_rotation;
+	Matrix m_translation; // Identity but last column is Tx Ty Tz 1
+	float m_scale{ 1.0f };
+
+public:
+	Instance() = delete;
+	Instance(myModel* model, Matrix rotation = MatrixIdentity(), Matrix translation = MatrixIdentity(), float scale = 1.0f)
+		: m_model{ model }, m_rotation{ rotation }, m_translation{ translation }, m_scale{ scale }, m_latest_transformed_vertices{ model->GetVertices() } // TODO : check if : does initializing a std::vector work like this?
+	{
+		SimpleRenderInstance_translation(true, false, false); // init the translation
+	}
+
+	// More of a test function, next we'll try implementing the more full render including the transformation matrices?
+	// TODO : Extend to full transform matrix (or maybe just the instance transform components here? Where would camera part go best?)
+	void SimpleRenderInstance_translation(bool perform_transform, bool wireframe_only, bool do_render)
+	{
+		if (perform_transform)
+		{
+			// Probably unnecessary code, if the initializer works?
+			auto model_num_vertices{ m_model->GetVertices().size() };
+			if (m_latest_transformed_vertices.size() != model_num_vertices
+				|| m_latest_projected_vertices.size() != model_num_vertices)
+			{
+				m_latest_transformed_vertices.resize(model_num_vertices);
+				m_latest_projected_vertices.resize(model_num_vertices);
+			}
+
+			int i = 0;
+			for (const Vector3& vertex : m_model->GetVertices())
+			{
+				Vector3 v_prime = Vector3Transform(vertex, m_translation);
+				m_latest_transformed_vertices[i] = v_prime; // For later optimization purposes (not coded yet)
+				m_latest_projected_vertices[i] = ProjectVertex(v_prime);
+				i++;
+			}
+		}
+
+		if (do_render)
+		{
+			for (const Triangle& triangle : m_model->GetTriangles())
+			{
+				RenderTriangle(wireframe_only, m_latest_projected_vertices, triangle);
+			}
+		}
+	}
+};
+
+namespace SceneRaster
+{
+
+};
+
+void CubeDrawTest()
+{
+	// The four "front" vertices
+	Vector3 vAf { -2.0f, -0.5f, 5.0f };
+	Vector3 vBf { -2.0f, 0.5f, 5.0f };
+	Vector3 vCf { -1.0f, 0.5f, 5.0f };
+	Vector3 vDf { -1.0f, -0.5f, 5.0f };
+
+	// The four "back" vertices
+	Vector3 vAb { -2.0f, -0.5f, 6.0f };
+	Vector3 vBb { -2.0f, 0.5f, 6.0f };
+	Vector3 vCb { -1.0f, 0.5f, 6.0f };
+	Vector3 vDb { -1.0f, -0.5f, 6.0f };
+
+	// The front face
+	myDrawLine(ProjectVertex(vAf), ProjectVertex(vBf), BLUE);
+	myDrawLine(ProjectVertex(vBf), ProjectVertex(vCf), BLUE);
+	myDrawLine(ProjectVertex(vCf), ProjectVertex(vDf), BLUE);
+	myDrawLine(ProjectVertex(vDf), ProjectVertex(vAf), BLUE);
+
+	// The back face
+	myDrawLine(ProjectVertex(vAb), ProjectVertex(vBb), RED);
+	myDrawLine(ProjectVertex(vBb), ProjectVertex(vCb), RED);
+	myDrawLine(ProjectVertex(vCb), ProjectVertex(vDb), RED);
+	myDrawLine(ProjectVertex(vDb), ProjectVertex(vAb), RED);
+
+	// The front-to-back edges
+	myDrawLine(ProjectVertex(vAf), ProjectVertex(vAb), GREEN);
+	myDrawLine(ProjectVertex(vBf), ProjectVertex(vBb), GREEN);
+	myDrawLine(ProjectVertex(vCf), ProjectVertex(vCb), GREEN);
+	myDrawLine(ProjectVertex(vDf), ProjectVertex(vDb), GREEN);
 }
 
 void RasterizationPractice()
@@ -139,16 +339,24 @@ void RasterizationPractice()
 
 	InitWindow(RasterGlobals::resolution_width, RasterGlobals::resolution_height, "Graphics from Scratch 1");
 
-	float Vw{ 1.0f };	// Viewport width
-	float Vh{ 1.0f };	// Viewport height
-	float d = 0.75f;	// Viewport distance
-
 	// Camera at origin (to start)
 	// Viewport center at distance `d`
 	Vector3 O{ 0.0, 0.0, 0.0 };
 
+	// Cube draw test using instancing
+	// -Instantiate a cube myModel -> Done in RasterObjectsModels namespace
+	// -Create an Instance
+	// -Render (use some translation) -> Do in the frame update loop
+	Matrix translation{
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 5.0f,
+		0.0f, 1.0f, 0.0f, 1.0f,
+	}; // Should just push it along the +Z so we can see it without camera movement
+	Instance cube_instance_test1{ &RasterObjectModels::model_cube, MatrixIdentity(), translation };
+
 	// game loop
-	while (!WindowShouldClose())		// run the loop until the user presses ESCAPE or presses the Close button on the window
+	while (!WindowShouldClose())	// run the loop until the user presses ESCAPE or presses the Close button on the window
 	{
 		// update can go here
 
@@ -164,9 +372,24 @@ void RasterizationPractice()
 		//myDrawLine({ -50,-200 }, { 60,240 }, GREEN);
 
 		// Triangle drawing tests
-		DrawWireframeTriangle({ -200,-250 }, { 200,50 }, { 20,250 }, BLACK);
-		DrawFilledTriangle({ -200,-250 }, { 200,50 }, { 20,250 }, ORANGE);
-		DrawShadedTriangle({ -500,-300,0.1f }, { -300,-450,1.0f }, { -50,-50,0.4f }, PURPLE);
+		//DrawWireframeTriangle({ -200,-250 }, { 200,50 }, { 20,250 }, BLACK);
+		//DrawFilledTriangle({ -200,-250 }, { 200,50 }, { 20,250 }, ORANGE);
+		//DrawShadedTriangle({ -500,-300,0.1f }, { -300,-450,1.0f }, { -50,-50,0.4f }, PURPLE);
+
+		// Triangle drawing tests 2 (with RenderTriangle)
+		/*
+		std::vector<CanvasPoint> render_triangle_test_vertices_1{
+			{ -500, -300, 0.1f }, { -300,-450,1.0f }, { -50,-50,0.4f }
+		};
+		Triangle render_triangle_test_triangle_1(0, 2, 1, PURPLE);
+		RenderTriangle(true, render_triangle_test_vertices_1, render_triangle_test_triangle_1);
+		*/
+
+		// Cube draw Test
+		//CubeDrawTest();
+
+		// Cube draw test using Instance::SimpleRenderInstance_translation !
+		cube_instance_test1.SimpleRenderInstance_translation(false, true, true);
 
 		// end the frame and get ready for the next one  (display frame, poll input, etc...)
 		EndDrawing();

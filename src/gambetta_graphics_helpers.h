@@ -6,12 +6,14 @@
 //#error "YES, THIS HEADER IS BEING INCLUDED"
 
 #include "raylib.h"
+#include "raymath.h"
 #include <utility>
 #include <iostream>
 #include <limits>
 #include <vector>
 #include <array>
 #include <cassert>
+#include <string>
 
 void RayTracePractice();
 void RasterizationPractice();
@@ -63,6 +65,7 @@ constexpr std::vector<float> LinearInterpolate_2d_CanvasPoints(CanvasPoint P0, C
 template <typename T>
 constexpr std::vector<float> LinearInterpolate_2d(int i0, int i1, T d0, T d1)
 {
+	if (i0 == i1+1) i0 = i1; // Having rounding error sometimes when deriving the i's from a float, so I'm handling it this way for now. Not ideal, but it's working for now.
 	assert(i0 <= i1 && "P1 must come before P2 in i");
 
 	std::vector<float> interp_vals;

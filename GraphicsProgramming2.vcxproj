@@ -306,6 +306,7 @@
     <ClInclude Include="src\gambetta_graphics_helpers.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\CppTests.cpp" />
     <ClCompile Include="src\main.cpp">
       <ObjectFileName>$(IntDir)\main1.obj</ObjectFileName>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
